@@ -518,7 +518,7 @@ function renderBandeja(){
       </div>
       <div class="bandeja-actions">
         ${isNew
-          ?`<button class="btn btn-accent btn-sm" onclick="abrirProcesar('${rowJson}')">+ Procesar</button>`
+          ?`<button class="btn btn-accent btn-sm" onclick="abrirProcesar(${idx})">+ Procesar</button>`
           :`<span style="font-size:10px;color:var(--ok)">✓ En BD</span>`
         }
       </div>
@@ -526,8 +526,8 @@ function renderBandeja(){
   }).join('');
 }
 
-function abrirProcesar(rowJson){
-  procRow=JSON.parse(rowJson.replace(/&quot;/g,'"'));
+function abrirProcesar(idx){
+  procRow=window._bandejaRows[idx];
   const act=procRow[ACT_COL]||'—';
   document.getElementById('prev-act').textContent=act;
   document.getElementById('prev-meta').textContent=`${procRow['SEDE']||''} · ${procRow['NOMBRE DE QUIEN REPORTA']||''} · ${fdate(procRow['Marca temporal'])}`;
@@ -593,13 +593,13 @@ function renderTabla(){
           <td>${gc(r,'QUIEN EJECUTA')}</td>
           <td class="${c>0?'amount':'amount-zero'}">${c>0?money(c):'Sin costo'}</td>
           <td>${badge(gc(r,'ESTADO'))}</td>
-          <td><button class="btn btn-sm" onclick="abrirEditar('${rj}')">Editar</button></td></tr>`;
+          <td><button class="btn btn-sm" onclick="abrirEditarIdx(${_actIdx})">Editar</button></td></tr>`;
       }).join('')
     :'<tr><td colspan="8" class="empty-state">Sin resultados</td></tr>';
 }
 
-function abrirEditar(rj){
-  const r=JSON.parse(rj.replace(/&quot;/g,'"'));
+function abrirEditarIdx(idx){
+  const r=window._filteredBD[idx];
   editTkt=gc(r,'# TICKET');
   document.getElementById('e-tkt').value=editTkt;
   document.getElementById('e-act').value=gc(r,ACT_COL)||gc(r,'ACTIVIDAD');
