@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEWO · Sistema de Mantenimiento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bk:#0e0e0e;--dk1:#1a1a1a;--dk2:#232323;--card:#1c1c1c;
+  --md:#3a3a3a;--md2:#6b6b6b;--lt:#9a9a9a;--line:#2c2c2c;
+  --white:#f5f5f5;--accent:#c8f000;--accent-dim:#8fa800;
+  --danger:#e85d4a;--warn:#e0a83e;--ok:#5fb88a;--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bk);color:var(--white);font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.5;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:220px;background:var(--dk1);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar .logo{padding:22px 20px;border-bottom:1px solid var(--line);}
+.logo-text{font-size:26px;font-weight:200;letter-spacing:5px;color:var(--white);}
+.sidebar nav{flex:1;padding:14px 0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--lt);cursor:pointer;font-size:13px;font-weight:500;border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{background:var(--dk2);color:var(--white);}
+.nav-item.active{background:var(--dk2);color:var(--accent);border-left-color:var(--accent);}
+.nav-item .ic{width:20px;text-align:center;}
+.sidebar .footer{padding:14px 20px;border-top:1px solid var(--line);font-size:11px;color:var(--md2);}
+.main{flex:1;overflow-y:auto;height:100vh;}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:18px 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bk);z-index:10;}
+.topbar h1{font-size:19px;font-weight:700;}
+.topbar .sub{font-size:12px;color:var(--lt);margin-top:2px;}
+.topbar .actions{display:flex;gap:8px;align-items:center;}
+.content{padding:24px 28px;}
+.btn{padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--dk2);color:var(--white);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:var(--md);}
+.btn:disabled{opacity:.5;cursor:default;}
+.btn-accent{background:var(--accent);color:#111;border-color:var(--accent);}
+.btn-accent:hover{background:var(--accent-dim);}
+.btn-sm{padding:5px 10px;font-size:11px;}
+.sync-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin-bottom:20px;font-size:12px;}
+.sync-bar.ok{background:rgba(95,184,138,.08);border:1px solid rgba(95,184,138,.25);color:var(--ok);}
+.sync-bar.loading{background:rgba(200,240,0,.06);border:1px solid rgba(200,240,0,.2);color:var(--accent);}
+.sync-bar.error{background:rgba(232,93,74,.08);border:1px solid rgba(232,93,74,.25);color:var(--danger);}
+.spinner{width:14px;height:14px;border:2px solid rgba(200,240,0,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.kpi-grid.g3{grid-template-columns:repeat(3,1fr);}
+.kpi-grid.g4{grid-template-columns:repeat(4,1fr);}
+.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+.kpi-card .label{font-size:10px;color:var(--lt);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;}
+.kpi-card .value{font-size:28px;font-weight:800;}
+.value-accent{color:var(--accent);}
+.value-white{color:var(--white);}
+.value-ok{color:var(--ok);}
+.value-danger{color:var(--danger);}
+.value-warn{color:var(--warn);}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:18px;overflow:hidden;}
+.panel-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--dk2);}
+.panel-head h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.panel-body{padding:16px;}
+.grid-2{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;}
+.chart-box{position:relative;height:220px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{text-align:left;padding:9px 10px;color:var(--lt);font-weight:600;border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--dk2);}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.badge-pend{background:rgba(232,93,74,.15);color:var(--danger);}
+.badge-proc{background:rgba(224,168,62,.15);color:var(--warn);}
+.badge-real{background:rgba(95,184,138,.15);color:var(--ok);}
+.badge-cancel{background:rgba(154,154,154,.15);color:var(--lt);}
+.mono{font-family:monospace;color:var(--md2);font-size:11px;}
+.amount{font-weight:700;color:var(--accent);}
+.amount-zero{color:var(--md2);font-style:italic;font-size:11px;}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.filters select,.filters input{background:var(--dk2);border:1px solid var(--line);color:var(--white);padding:7px 11px;border-radius:7px;font-size:12px;font-family:inherit;}
+.filters input{flex:1;min-width:180px;}
+.bandeja-item{background:var(--dk2);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s;}
+.bandeja-item:hover{border-color:rgba(200,240,0,.4);}
+.bandeja-item.procesada{opacity:.55;}
+.bandeja-badge{min-width:56px;text-align:center;}
+.bandeja-body{flex:1;}
+.bandeja-body .act-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.bandeja-body .act-meta{font-size:11px;color:var(--lt);}
+.bandeja-actions{display:flex;gap:6px;align-items:flex-start;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:flex-start;justify-content:center;padding-top:40px;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--dk1);border:1px solid var(--line);border-radius:12px;width:540px;max-width:95vw;}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+.modal-head h3{font-size:15px;font-weight:700;}
+.modal-body{padding:20px;}
+.form-row{margin-bottom:13px;}
+.form-row label{display:block;font-size:10.5px;color:var(--lt);margin-bottom:5px;font-weight:600;text-transform:uppercase;}
+.form-row input,.form-row select,.form-row textarea{width:100%;background:var(--dk2);border:1px solid var(--line);color:var(--white);padding:8px 11px;border-radius:7px;font-size:13px;font-family:inherit;}
+.form-row textarea{resize:vertical;min-height:56px;}
+.form-row input[readonly]{color:var(--lt);cursor:default;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;}
+.close-x{cursor:pointer;color:var(--lt);font-size:22px;line-height:1;}
+.close-x:hover{color:var(--white);}
+.preview-box{background:var(--dk2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--lt);}
+.preview-box b{color:var(--white);display:block;margin-bottom:4px;}
+.hidden{display:none!important;}
+.empty-state{padding:36px 20px;text-align:center;color:var(--lt);font-size:13px;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-thumb{background:var(--md);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="logo"><div class="logo-text">newo</div></div>
+    <nav>
+      <div class="nav-item active" data-view="dashboard"><span class="ic">▣</span>Dashboard</div>
+      <div class="nav-item" data-view="bandeja"><span class="ic">📥</span>Bandeja entrada</div>
+      <div class="nav-item" data-view="actividades"><span class="ic">☰</span>Actividades</div>
+      <div class="nav-item" data-view="alertas"><span class="ic">▲</span>Alertas</div>
+      <div class="nav-item" data-view="presupuesto"><span class="ic">$</span>Presupuesto</div>
+      <div class="nav-item" data-view="sedes"><span class="ic">⌂</span>Por sede</div>
+    </nav>
+    <div class="footer">NEWO Mantenimiento<br>Conectado a Google Sheets · 2026</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Dashboard General</h1>
+        <div class="sub" id="page-sub">Vista consolidada de todas las sedes</div>
+      </div>
+      <div class="actions">
+        <span id="sync-label" style="font-size:11px;color:var(--lt)">Cargando...</span>
+        <button class="btn" onclick="recargar()">⟳ Actualizar</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="view">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="label">Total actividades</div><div class="value value-white" id="k-total">—</div></div>
+          <div class="kpi-card"><div class="label">Pendientes</div><div class="value value-danger" id="k-pend">—</div></div>
+          <div class="kpi-card"><div class="label">En proceso</div><div class="value value-warn" id="k-proc">—</div></div>
+          <div class="kpi-card"><div class="label">Realizadas</div><div class="value value-ok" id="k-real">—</div></div>
+          <div class="kpi-card"><div class="label">% Avance</div><div class="value value-accent" id="k-avance">—</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><h3>Por sede</h3></div>
+            <div class="panel-body"><div class="chart-box"><canvas id="chartSede"></canvas></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Por categoría</h3></div>
+            <div class="panel-body"><div class="chart-box"><canvas id="chartCat"></canvas></div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>🔴 Grandes presupuestos activos ≥ $500.000</h3></div>
+          <div class="panel-body" style="padding:0">
+            <table><thead><tr><th>Sede</th><th>Actividad</th><th>Ejecuta</th><th>Cotización</th><th>Estado</th></tr></thead>
+            <tbody id="tbl-grandes"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BANDEJA -->
+      <div id="view-bandeja" class="view hidden">
+        <div class="sync-bar loading" id="bandeja-bar">
+          <div class="spinner"></div><span>Cargando respuestas del formulario...</span>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Nuevos reportes de coordinadoras</h3>
+            <span id="bandeja-count" style="font-size:11px;color:var(--lt)"></span>
+          </div>
+          <div id="bandeja-lista" class="panel-body">
+            <div class="empty-state">Cargando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVIDADES -->
+      <div id="view-actividades" class="view hidden">
+        <div class="filters">
+          <input type="text" id="f-search" placeholder="Buscar actividad o ticket..." oninput="renderTabla()">
+          <select id="f-sede" onchange="renderTabla()"><option value="">Todas las sedes</option></select>
+          <select id="f-estado" onchange="renderTabla()">
+            <option value="">Todos los estados</option>
+            <option>PENDIENTE</option><option>EN PROCESO</option>
+            <option>REALIZADO</option><option>CANCELADO</option>
+          </select>
+          <select id="f-cat" onchange="renderTabla()"><option value="">Todas las categorías</option></select>
+        </div>
+        <div class="panel">
+          <div class="panel-body" style="padding:0">
+            <table><thead><tr>
+              <th>Ticket</th><th>Sede</th><th>Actividad</th><th>Categoría</th>
+              <th>Ejecuta</th><th>Cotización</th><th>Estado</th><th></th>
+            </tr></thead><tbody id="tbl-act"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTAS -->
+      <div id="view-alertas" class="view hidden">
+        <div class="filters">
+          <select id="alert-filter" style="min-width:260px;">
+            <option value="todas">Todas las pendientes</option>
+            <option value="seguridad">Riesgo seguridad</option>
+            <option value="sinfecha">Sin fecha programada</option>
+            <option value="sincotizar">Sin cotizar (externos)</option>
+            <option value="grandes">Grandes presupuestos (≥$500K)</option>
+            <option value="proceso">En proceso</option>
+          </select>
+          <button class="btn btn-accent btn-sm" onclick="renderAlertas()">▶ Generar</button>
+        </div>
+        <div class="kpi-grid g3" style="margin-bottom:16px;">
+          <div class="kpi-card" style="grid-column:1/-1">
+            <div class="label" id="alert-label">Selecciona un filtro y haz click en Generar</div>
+            <div class="value value-danger" id="alert-count">—</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-body" style="padding:0">
+            <table><thead><tr>
+              <th>Ticket</th><th>Sede</th><th>Actividad</th>
+              <th>Ejecuta</th><th>Cotización</th><th>Fecha prog.</th>
+            </tr></thead><tbody id="tbl-alertas"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRESUPUESTO -->
+      <div id="view-presupuesto" class="view hidden">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="label">Cotizado pendiente</div><div class="value value-accent" id="p-cotiz">—</div></div>
+          <div class="kpi-card"><div class="label">Total ejecutado</div><div class="value value-ok" id="p-ejec">—</div></div>
+          <div class="kpi-card"><div class="label">Sin cotizar externos</div><div class="value value-danger" id="p-sin">—</div></div>
+          <div class="kpi-card"><div class="label">Grandes activos</div><div class="value value-warn" id="p-gran">—</div></div>
+          <div class="kpi-card"><div class="label">Actividades Rober</div><div class="value value-white" id="p-rob">—</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Costo ejecutado por sede (ABR–JUL 2026)</h3></div>
+          <div class="panel-body"><div class="chart-box" style="height:260px"><canvas id="chartPres"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- SEDES -->
+      <div id="view-sedes" class="view hidden">
+        <div class="filters">
+          <select id="sede-sel" onchange="renderSede()" style="min-width:160px;font-size:13px;"></select>
+        </div>
+        <div class="kpi-grid g3" style="margin-bottom:18px;">
+          <div class="kpi-card"><div class="label">Total</div><div class="value value-white" id="sd-tot">—</div></div>
+          <div class="kpi-card"><div class="label">Realizadas</div><div class="value value-ok" id="sd-real">—</div></div>
+          <div class="kpi-card"><div class="label">Pendientes</div><div class="value value-danger" id="sd-pend">—</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Por categoría</h3></div>
+          <div class="panel-body" style="padding:0">
+            <table><thead><tr>
+              <th>Categoría</th><th>Total</th><th>Realizadas</th><th>Pendientes</th><th>% Avance</th>
+            </tr></thead><tbody id="tbl-sede"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- MODAL PROCESAR -->
+<div class="modal-overlay" id="modal-proc">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Procesar reporte → BASE_DATOS</h3>
+      <span class="close-x" onclick="closeModal('modal-proc')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="preview-box">
+        <b id="prev-act"></b>
+        <span id="prev-meta"></span>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Sede</label>
+          <select id="mp-sede"><option>ON</option><option>FRO</option><option>MX</option><option>CAFÉ ON</option><option>CAFE FRO</option><option>CAFE MX</option><option>HS</option></select>
+        </div>
+        <div class="form-row"><label>Estado inicial</label>
+          <select id="mp-estado"><option>PENDIENTE</option><option>EN PROCESO</option></select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Tipo de Mtto</label>
+          <select id="mp-tipo"><option>CORRECTIVO</option><option>PREVENTIVO</option><option>OBRA</option><option>PROGRAMADO/SOLICITUD</option></select>
+        </div>
+        <div class="form-row"><label>Categoría</label>
+          <select id="mp-cat"><option>ELÉCTRICO</option><option>PINTURA</option><option>MOBILIARIO</option><option>PLOMERÍA</option><option>ESTRUCTURA</option><option>CLIMATIZACIÓN</option><option>SEGURIDAD</option><option>OTROS</option></select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Quien ejecuta</label>
+          <input type="text" id="mp-ejec" placeholder="Rober / Yeison / ...">
+        </div>
+        <div class="form-row"><label>Cotización + IVA</label>
+          <input type="number" id="mp-cotiz" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Fecha programada</label>
+          <input type="date" id="mp-fecha">
+        </div>
+        <div class="form-row"><label>Nivel de riesgo</label>
+          <select id="mp-riesgo"><option>ESTÉTICO</option><option>OPERATIVO</option><option>SEGURIDAD</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label>Aprobado por</label>
+        <select id="mp-aprobado">
+          <option value="">— Sin asignar —</option>
+          <option>Daniela Díaz</option><option>Andrés Restrepo</option><option>Simón Rodríguez</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Comentarios</label>
+        <textarea id="mp-coment" placeholder="Observaciones adicionales..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-proc')">Cancelar</button>
+      <button class="btn btn-accent" id="btn-proc" onclick="guardar()">💾 Guardar en BASE_DATOS</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Editar actividad</h3>
+      <span class="close-x" onclick="closeModal('modal-edit')">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row"><label>Ticket</label><input type="text" id="e-tkt" readonly></div>
+      <div class="form-row"><label>Actividad</label><textarea id="e-act"></textarea></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Estado</label>
+          <select id="e-estado"><option>PENDIENTE</option><option>EN PROCESO</option><option>REALIZADO</option><option>CANCELADO</option></select>
+        </div>
+        <div class="form-row"><label>Quien ejecuta</label><input type="text" id="e-ejec"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Cotización + IVA</label><input type="number" id="e-cotiz"></div>
+        <div class="form-row"><label>Fecha cierre real</label><input type="date" id="e-cierre"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Aprobado por</label>
+          <select id="e-aprobado">
+            <option value="">— Sin asignar —</option>
+            <option>Daniela Díaz</option><option>Andrés Restrepo</option><option>Simón Rodríguez</option>
+          </select>
+        </div>
+        <div class="form-row"><label>Aprobación cotización</label>
+          <select id="e-aprob-cotiz">
+            <option value="">—</option>
+            <option>APROBADA</option><option>NO APROBADA</option><option>PENDIENTE DE APROBACIÓN</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label>Comentarios</label><textarea id="e-coment"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-edit')">Cancelar</button>
+      <button class="btn btn-accent" id="btn-edit" onclick="actualizar()">💾 Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbwpEz3DQZQz1Soaliyh-VmPhaQChAaRahnBvfawjU4AaxGmoXQ5e_lNqD41bV6zYb_EVA/exec';
+const SEDES = ['ON','FRO','MX','CAFÉ ON','CAFE FRO','CAFE MX','HS'];
+const CATS  = ['ELÉCTRICO','PINTURA','MOBILIARIO','PLOMERÍA','ESTRUCTURA','CLIMATIZACIÓN','SEGURIDAD','OTROS'];
+const ACT_COL = 'ACTIVIDAD (1 SOLA TAREA POR SOLICITUD/ ESPECIFICA MUY BIEN QUÉ Y DÓNDE)';
+
+let BD = [], FORM = [];
+let editTkt = null, procRow = null;
+let cSede, cCat, cPres;
+
+// ── API ───────────────────────────────────────────────────────
+const apiGet = a => fetch(API+'?action='+a).then(r=>r.json());
+const apiPost = b => fetch(API,{method:'POST',body:JSON.stringify(b)}).then(r=>r.json());
+
+// ── INIT ─────────────────────────────────────────────────────
+async function recargar(){
+  setSyncLabel('⟳ Sincronizando...','var(--accent)');
+  try{
+    const [rb,rf] = await Promise.all([apiGet('getBaseDatos'), apiGet('getRespuestas')]);
+    if(rb.success) BD = rb.data;
+    if(rf.success) FORM = rf.data;
+    setSyncLabel(`✓ ${BD.length} en BD · ${FORM.length} del Form · ${new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`, 'var(--ok)');
+    renderVista();
+  } catch(e){
+    setSyncLabel('✗ Error de conexión','var(--danger)');
+  }
+}
+function setSyncLabel(txt,color){
+  const el=document.getElementById('sync-label');
+  el.textContent=txt; el.style.color=color;
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+const PAGE={
+  dashboard:['Dashboard General','Vista consolidada de todas las sedes'],
+  bandeja:['Bandeja de Entrada','Reportes del formulario — procésalos aquí'],
+  actividades:['Actividades','Listado completo con filtros y edición'],
+  alertas:['Panel de Alertas','Selecciona un filtro y genera la vista'],
+  presupuesto:['Presupuesto','Cotizaciones y costos en tiempo real'],
+  sedes:['Resumen por Sede','Detalle operativo de cada ubicación'],
+};
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    el.classList.add('active');
+    const v=el.dataset.view;
+    document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
+    document.getElementById('view-'+v).classList.remove('hidden');
+    document.getElementById('page-title').textContent=PAGE[v][0];
+    document.getElementById('page-sub').textContent=PAGE[v][1];
+    renderVista(v);
+  });
+});
+function renderVista(v){
+  const cur=v||(document.querySelector('.nav-item.active')?.dataset.view||'dashboard');
+  if(cur==='dashboard') renderDash();
+  if(cur==='bandeja') renderBandeja();
+  if(cur==='actividades') renderTabla();
+  if(cur==='alertas') renderAlertas();
+  if(cur==='presupuesto') renderPres();
+  if(cur==='sedes') renderSede();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+const gc=(r,k)=>r[k]||r[k?.trim()]||'';
+const money=n=>{const v=Number(n); return v>0?'$'+v.toLocaleString('es-CO'):null;};
+const fdate=s=>{if(!s)return'—';try{return new Date(s).toLocaleDateString('es-CO');}catch{return s;}};
+function badge(e){
+  const m={PENDIENTE:'badge-pend','EN PROCESO':'badge-proc',REALIZADO:'badge-real',CANCELADO:'badge-cancel'};
+  return `<span class="badge ${m[e]||''}">${e||'—'}</span>`;
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function renderDash(){
+  const tot=BD.length, pend=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE').length,
+    proc=BD.filter(r=>gc(r,'ESTADO')==='EN PROCESO').length,
+    real=BD.filter(r=>gc(r,'ESTADO')==='REALIZADO').length;
+  document.getElementById('k-total').textContent=tot;
+  document.getElementById('k-pend').textContent=pend;
+  document.getElementById('k-proc').textContent=proc;
+  document.getElementById('k-real').textContent=real;
+  document.getElementById('k-avance').textContent=tot?Math.round(real/tot*100)+'%':'0%';
+
+  if(cSede)cSede.destroy();
+  cSede=new Chart(document.getElementById('chartSede'),{
+    type:'bar',
+    data:{labels:SEDES,datasets:[{data:SEDES.map(s=>BD.filter(r=>gc(r,'SEDE')===s).length),backgroundColor:'#c8f000',borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:'#9a9a9a'},grid:{color:'#2c2c2c'}},x:{ticks:{color:'#9a9a9a'},grid:{display:false}}}}
+  });
+
+  if(cCat)cCat.destroy();
+  cCat=new Chart(document.getElementById('chartCat'),{
+    type:'doughnut',
+    data:{labels:CATS,datasets:[{data:CATS.map(c=>BD.filter(r=>gc(r,'CATEGORIA')===c).length),
+      backgroundColor:['#c8f000','#8fa800','#6b6b6b','#9a9a9a','#3a3a3a','#5fb88a','#e85d4a','#e0a83e']}]},
+    options:{plugins:{legend:{position:'right',labels:{color:'#9a9a9a',font:{size:10},boxWidth:10}}}}
+  });
+
+  const grandes=BD.filter(r=>gc(r,'ESTADO')!=='REALIZADO'&&Number(gc(r,' COTIZACION + IVA '))>=500000)
+    .sort((a,b)=>Number(gc(b,' COTIZACION + IVA '))-Number(gc(a,' COTIZACION + IVA ')));
+  document.getElementById('tbl-grandes').innerHTML=grandes.length
+    ?grandes.map(r=>`<tr><td><b>${gc(r,'SEDE')}</b></td><td>${gc(r,ACT_COL)||gc(r,'ACTIVIDAD')}</td><td>${gc(r,'QUIEN EJECUTA')}</td><td class="amount">${money(gc(r,' COTIZACION + IVA '))}</td><td>${badge(gc(r,'ESTADO'))}</td></tr>`).join('')
+    :'<tr><td colspan="5" class="empty-state">No hay grandes presupuestos activos</td></tr>';
+}
+
+// ── BANDEJA ───────────────────────────────────────────────────
+function renderBandeja(){
+  const bar=document.getElementById('bandeja-bar');
+  const lista=document.getElementById('bandeja-lista');
+  if(!FORM.length){
+    bar.className='sync-bar error'; bar.innerHTML='✗ No se pudieron cargar las respuestas del formulario';
+    lista.innerHTML='<div class="empty-state">Sin datos</div>'; return;
+  }
+
+  const bdKeys=new Set(BD.map(r=>(gc(r,'Fecha y hora')||'').substring(0,10)+'|'+(gc(r,ACT_COL)||gc(r,'ACTIVIDAD')||'').substring(0,30)));
+  const nuevas=FORM.filter(r=>{
+    const k=(r['Marca temporal']||'').substring(0,10)+'|'+(r[ACT_COL]||'').substring(0,30);
+    return !bdKeys.has(k);
+  });
+
+  bar.className='sync-bar ok';
+  bar.innerHTML=`✓ ${FORM.length} respuestas del Form · ${nuevas.length} sin procesar`;
+  document.getElementById('bandeja-count').textContent=`${BD.length} ya en BASE_DATOS`;
+
+  const all=[...nuevas,...FORM.filter(r=>!nuevas.includes(r))].slice(0,60);
+  lista.innerHTML=all.map(r=>{
+    const isNew=nuevas.includes(r);
+    const act=r[ACT_COL]||'—';
+    const sede=r['SEDE']||'—';
+    const nombre=r['NOMBRE DE QUIEN REPORTA']||'—';
+    const fecha=fdate(r['Marca temporal']);
+    const estado=r['Vas a reportar:']||'—';
+    const rowJson=JSON.stringify(r).replace(/"/g,'&quot;');
+    return `<div class="bandeja-item${isNew?'':' procesada'}">
+      <div class="bandeja-badge">${badge(isNew?'PENDIENTE':'REALIZADO')}<br>
+        <span style="font-size:10px;color:var(--lt);margin-top:4px;display:block">${sede}</span>
+      </div>
+      <div class="bandeja-body">
+        <div class="act-title">${act}</div>
+        <div class="act-meta">${nombre} · ${fecha} · ${estado}</div>
+      </div>
+      <div class="bandeja-actions">
+        ${isNew
+          ?`<button class="btn btn-accent btn-sm" onclick="abrirProcesar('${rowJson}')">+ Procesar</button>`
+          :`<span style="font-size:10px;color:var(--ok)">✓ En BD</span>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirProcesar(rowJson){
+  procRow=JSON.parse(rowJson.replace(/&quot;/g,'"'));
+  const act=procRow[ACT_COL]||'—';
+  document.getElementById('prev-act').textContent=act;
+  document.getElementById('prev-meta').textContent=`${procRow['SEDE']||''} · ${procRow['NOMBRE DE QUIEN REPORTA']||''} · ${fdate(procRow['Marca temporal'])}`;
+  const s=document.getElementById('mp-sede'); if(procRow['SEDE']) s.value=procRow['SEDE'];
+  document.getElementById('mp-ejec').value='';
+  document.getElementById('mp-cotiz').value='';
+  document.getElementById('mp-fecha').value='';
+  document.getElementById('mp-coment').value='';
+  document.getElementById('modal-proc').classList.add('show');
+}
+
+async function guardar(){
+  const btn=document.getElementById('btn-proc');
+  btn.textContent='Guardando...'; btn.disabled=true;
+  const data={
+    'Fecha y hora':procRow['Marca temporal']||'',
+    'Vas a reportar:':procRow['Vas a reportar:']||'',
+    'SEDE':document.getElementById('mp-sede').value,
+    [ACT_COL]:procRow[ACT_COL]||'',
+    'Adjunta evidencia ':procRow['Adjunta evidencia ']||'',
+    'NOMBRE DE QUIEN REPORTA':procRow['NOMBRE DE QUIEN REPORTA']||'',
+    'ESTADO':document.getElementById('mp-estado').value,
+    'Tipo de Mtto':document.getElementById('mp-tipo').value,
+    'QUIEN EJECUTA':document.getElementById('mp-ejec').value,
+    ' COTIZACION + IVA ':document.getElementById('mp-cotiz').value||0,
+    'FECHA PROGRAMADA':document.getElementById('mp-fecha').value,
+    'CATEGORIA':document.getElementById('mp-cat').value,
+    'NIVEL DE RIESGO':document.getElementById('mp-riesgo').value,
+    'APROBADO POR':document.getElementById('mp-aprobado').value,
+    'COMENTARIOS':document.getElementById('mp-coment').value,
+  };
+  try{
+    const res=await apiPost({action:'addRow',data});
+    if(res.success){closeModal('modal-proc');await recargar();alert('✓ Guardado con ticket '+res.ticket);}
+    else alert('Error: '+res.error);
+  }catch(e){alert('Error de conexión: '+e.message);}
+  btn.textContent='💾 Guardar en BASE_DATOS'; btn.disabled=false;
+}
+
+// ── TABLA ACTIVIDADES ─────────────────────────────────────────
+function populateFilters(){
+  const fs=document.getElementById('f-sede'), fc=document.getElementById('f-cat'), ss=document.getElementById('sede-sel');
+  SEDES.forEach(s=>{fs.innerHTML+=`<option>${s}</option>`;ss.innerHTML+=`<option>${s}</option>`;});
+  CATS.forEach(c=>fc.innerHTML+=`<option>${c}</option>`);
+}
+
+function renderTabla(){
+  const q=document.getElementById('f-search').value.toLowerCase();
+  const fs=document.getElementById('f-sede').value;
+  const fe=document.getElementById('f-estado').value;
+  const fc=document.getElementById('f-cat').value;
+  const filtered=BD.filter(r=>{
+    const act=(gc(r,ACT_COL)||gc(r,'ACTIVIDAD')||'').toLowerCase();
+    const tkt=(gc(r,'# TICKET')||'').toLowerCase();
+    return(!q||act.includes(q)||tkt.includes(q))&&(!fs||gc(r,'SEDE')===fs)&&(!fe||gc(r,'ESTADO')===fe)&&(!fc||gc(r,'CATEGORIA')===fc);
+  }).slice(0,100);
+  document.getElementById('tbl-act').innerHTML=filtered.length
+    ?filtered.map(r=>{
+        const c=Number(gc(r,' COTIZACION + IVA '));
+        const rj=JSON.stringify(r).replace(/"/g,'&quot;');
+        return `<tr><td class="mono">${gc(r,'# TICKET')}</td><td><b>${gc(r,'SEDE')}</b></td>
+          <td>${gc(r,ACT_COL)||gc(r,'ACTIVIDAD')}</td><td>${gc(r,'CATEGORIA')}</td>
+          <td>${gc(r,'QUIEN EJECUTA')}</td>
+          <td class="${c>0?'amount':'amount-zero'}">${c>0?money(c):'Sin costo'}</td>
+          <td>${badge(gc(r,'ESTADO'))}</td>
+          <td><button class="btn btn-sm" onclick="abrirEditar('${rj}')">Editar</button></td></tr>`;
+      }).join('')
+    :'<tr><td colspan="8" class="empty-state">Sin resultados</td></tr>';
+}
+
+function abrirEditar(rj){
+  const r=JSON.parse(rj.replace(/&quot;/g,'"'));
+  editTkt=gc(r,'# TICKET');
+  document.getElementById('e-tkt').value=editTkt;
+  document.getElementById('e-act').value=gc(r,ACT_COL)||gc(r,'ACTIVIDAD');
+  document.getElementById('e-estado').value=gc(r,'ESTADO');
+  document.getElementById('e-ejec').value=gc(r,'QUIEN EJECUTA');
+  document.getElementById('e-cotiz').value=gc(r,' COTIZACION + IVA ')||'';
+  document.getElementById('e-aprobado').value=gc(r,'APROBADO POR');
+  document.getElementById('e-aprob-cotiz').value=gc(r,'APROBACIÓN COTIZACIÓN');
+  document.getElementById('e-coment').value=gc(r,'COMENTARIOS');
+  const fc=gc(r,'FECHA CIERRE REAL');
+  if(fc){try{document.getElementById('e-cierre').value=new Date(fc).toISOString().slice(0,10);}catch{}}
+  document.getElementById('modal-edit').classList.add('show');
+}
+
+async function actualizar(){
+  const btn=document.getElementById('btn-edit');
+  btn.textContent='Guardando...'; btn.disabled=true;
+  const data={
+    'ESTADO':document.getElementById('e-estado').value,
+    'QUIEN EJECUTA':document.getElementById('e-ejec').value,
+    ' COTIZACION + IVA ':document.getElementById('e-cotiz').value||0,
+    'FECHA CIERRE REAL':document.getElementById('e-cierre').value,
+    'APROBADO POR':document.getElementById('e-aprobado').value,
+    'APROBACIÓN COTIZACIÓN':document.getElementById('e-aprob-cotiz').value,
+    'COMENTARIOS':document.getElementById('e-coment').value,
+  };
+  try{
+    const res=await apiPost({action:'updateRow',ticket:editTkt,data});
+    if(res.success){closeModal('modal-edit');await recargar();alert('✓ Actividad actualizada');}
+    else alert('Error: '+res.error);
+  }catch(e){alert('Error: '+e.message);}
+  btn.textContent='💾 Actualizar'; btn.disabled=false;
+}
+
+// ── ALERTAS ───────────────────────────────────────────────────
+function renderAlertas(){
+  const f=document.getElementById('alert-filter').value;
+  const labels={todas:'Actividades pendientes',seguridad:'Riesgo seguridad',sinfecha:'Sin fecha programada',sincotizar:'Sin cotizar (externos)',grandes:'Grandes presupuestos activos',proceso:'En proceso'};
+  let filtered=[];
+  if(f==='todas') filtered=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE');
+  else if(f==='seguridad') filtered=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE'&&gc(r,'NIVEL DE RIESGO')==='SEGURIDAD');
+  else if(f==='sinfecha') filtered=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE'&&!gc(r,'FECHA PROGRAMADA'));
+  else if(f==='sincotizar') filtered=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE'&&!Number(gc(r,' COTIZACION + IVA '))&&gc(r,'QUIEN EJECUTA')!=='Rober');
+  else if(f==='grandes') filtered=BD.filter(r=>gc(r,'ESTADO')!=='REALIZADO'&&Number(gc(r,' COTIZACION + IVA '))>=500000);
+  else if(f==='proceso') filtered=BD.filter(r=>gc(r,'ESTADO')==='EN PROCESO');
+  document.getElementById('alert-label').textContent=labels[f]||'';
+  document.getElementById('alert-count').textContent=filtered.length;
+  document.getElementById('tbl-alertas').innerHTML=filtered.length
+    ?filtered.map(r=>{const c=Number(gc(r,' COTIZACION + IVA '));return`<tr><td class="mono">${gc(r,'# TICKET')}</td><td><b>${gc(r,'SEDE')}</b></td><td>${gc(r,ACT_COL)||gc(r,'ACTIVIDAD')}</td><td>${gc(r,'QUIEN EJECUTA')}</td><td class="${c>0?'amount':'amount-zero'}">${c>0?money(c):'—'}</td><td>${fdate(gc(r,'FECHA PROGRAMADA'))}</td></tr>`;}).join('')
+    :'<tr><td colspan="6" class="empty-state">Sin resultados</td></tr>';
+}
+
+// ── PRESUPUESTO ───────────────────────────────────────────────
+function renderPres(){
+  const act=BD.filter(r=>gc(r,'ESTADO')!=='REALIZADO');
+  const cotiz=act.reduce((s,r)=>s+Number(gc(r,' COTIZACION + IVA ')||0),0);
+  const ejec=BD.filter(r=>gc(r,'ESTADO')==='REALIZADO').reduce((s,r)=>s+Number(gc(r,' COTIZACION + IVA ')||0),0);
+  document.getElementById('p-cotiz').textContent=money(cotiz)||'$0';
+  document.getElementById('p-ejec').textContent=money(ejec)||'$0';
+  document.getElementById('p-sin').textContent=BD.filter(r=>gc(r,'ESTADO')==='PENDIENTE'&&!Number(gc(r,' COTIZACION + IVA '))&&gc(r,'QUIEN EJECUTA')!=='Rober').length;
+  document.getElementById('p-gran').textContent=act.filter(r=>Number(gc(r,' COTIZACION + IVA '))>=500000).length;
+  document.getElementById('p-rob').textContent=BD.filter(r=>gc(r,'QUIEN EJECUTA')==='Rober').length+' act.';
+
+  const meses=[4,5,6,7];const mLbl=['ABR','MAY','JUN','JUL'];
+  const datasets=SEDES.map((s,i)=>({
+    label:s,
+    data:meses.map(m=>BD.filter(r=>gc(r,'SEDE')===s&&gc(r,'ESTADO')==='REALIZADO'&&gc(r,'FECHA CIERRE REAL')&&new Date(gc(r,'FECHA CIERRE REAL')).getMonth()+1===m).reduce((sum,r)=>sum+Number(gc(r,' COTIZACION + IVA ')||0),0)),
+    backgroundColor:['#c8f000','#8fa800','#6b6b6b','#5fb88a','#e85d4a','#e0a83e','#9a9a9a'][i%7]
+  }));
+  if(cPres)cPres.destroy();
+  cPres=new Chart(document.getElementById('chartPres'),{
+    type:'bar',data:{labels:mLbl,datasets},
+    options:{plugins:{legend:{labels:{color:'#9a9a9a'}}},scales:{
+      y:{ticks:{color:'#9a9a9a',callback:v=>'$'+(v/1000000).toFixed(1)+'M'},grid:{color:'#2c2c2c'},stacked:true},
+      x:{ticks:{color:'#9a9a9a'},grid:{display:false},stacked:true}
+    }}
+  });
+}
+
+// ── SEDES ─────────────────────────────────────────────────────
+function renderSede(){
+  const sede=document.getElementById('sede-sel').value||SEDES[0];
+  const items=BD.filter(r=>gc(r,'SEDE')===sede);
+  const real=items.filter(r=>gc(r,'ESTADO')==='REALIZADO').length;
+  const pend=items.filter(r=>gc(r,'ESTADO')==='PENDIENTE').length;
+  document.getElementById('sd-tot').textContent=items.length;
+  document.getElementById('sd-real').textContent=real;
+  document.getElementById('sd-pend').textContent=pend;
+  document.getElementById('tbl-sede').innerHTML=CATS.map(c=>{
+    const ci=items.filter(r=>gc(r,'CATEGORIA')===c);
+    const cr=ci.filter(r=>gc(r,'ESTADO')==='REALIZADO').length;
+    const cp=ci.filter(r=>gc(r,'ESTADO')==='PENDIENTE').length;
+    const pct=ci.length?Math.round(cr/ci.length*100):0;
+    return`<tr><td>${c}</td><td>${ci.length}</td><td style="color:var(--ok)">${cr}</td><td style="color:var(--danger)">${cp}</td><td>${pct}%</td></tr>`;
+  }).join('');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('show');editTkt=null;procRow=null;}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+
+// ── START ─────────────────────────────────────────────────────
+populateFilters();
+recargar();
+</script>
+</body>
+</html>
